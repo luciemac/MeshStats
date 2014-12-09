@@ -5,7 +5,8 @@ from __main__ import vtk, qt, ctk, slicer
 
 class MeshStats:
     def __init__(self, parent):
-        parent.title = "MeshStats"
+        parent.title = "Mesh Statistics"
+        parent.categories = ["Shape Analysis"]
         parent.dependencies = []
         parent.contributors = ["Lucie Macron"]
         parent.helpText = """
@@ -91,7 +92,6 @@ class MeshStatsWidget:
         labelLayout.addWidget(fieldLabel)
         labelLayout.addWidget(ROILabel)
 
-
         tableField = qt.QTableWidget()
         tableField.setColumnCount(2)
         tableField.setMaximumWidth(230)
@@ -106,6 +106,7 @@ class MeshStatsWidget:
         ROITable.setColumnWidth(0, 18)
         ROITable.setColumnWidth(1, 180)
 
+
         tablesLayout = qt.QHBoxLayout()
         tablesLayout.addWidget(tableField)
         tablesLayout.addWidget(ROITable)
@@ -118,7 +119,7 @@ class MeshStatsWidget:
         # ------------------------------------------------------------------------------------
         #                                    Apply
         # ------------------------------------------------------------------------------------
-        applyButton = qt.QPushButton("Apply")
+        applyButton = qt.QPushButton(" Run ")
         applyButton.setMaximumWidth(100)
         applyButton.enabled = False
         applyLayout = qt.QHBoxLayout()
@@ -127,58 +128,94 @@ class MeshStatsWidget:
         self.layout.addLayout(applyLayout)
 
         # ------------------------------------------------------------------------------------
-        #                                    Export
+        #                          Statistics Table - Export
         # ------------------------------------------------------------------------------------
+        tab = qt.QTabWidget()
+        # ---------------------------- Export Button ----------------------------
         exportButton = qt.QPushButton("Export")
         exportButton.setMaximumWidth(100)
-        exportButton.enabled = False
+        exportButton.enabled = True
+
         exportLayout = qt.QHBoxLayout()
         exportLayout.setAlignment(2)
         exportLayout.addWidget(exportButton)
-        self.layout.addLayout(exportLayout)
+
+        # ------------------------------------------------------------------------------------
 
         def onCurrentNodeChanged():
+
             activeNode = inputComboBox.currentNode()
             tableField.clearContents()
             tableField.setRowCount(0)
             ROITable.clearContents()
             ROITable.setRowCount(0)
+
             if activeNode:
                 pointData = activeNode.GetModelDisplayNode().GetInputPolyData().GetPointData()
                 numOfField = pointData.GetNumberOfArrays()
+                if numOfField > 0:
+                    tableFieldNumRows = 0
+                    tableROINumRows = 1
+                    ROITable.setRowCount(tableROINumRows)
+                    ROITable.setCellWidget(0, 0, qt.QCheckBox())
+                    ROITable.setCellWidget(0, 1, qt.QLabel('Entire Shape'))
+                    expression = r"_ROI$"
 
-                tableFieldNumRows = 0
-                tableROINumRows = 1
-                expression = r"_ROI$"
-
-                for i in range(0, numOfField):
-                    fieldName = pointData.GetArray(i).GetName()
-                    checkBox = qt.QCheckBox()
-                    if not re.search(expression, pointData.GetArray(i).GetName()):
-                        tableFieldNumRows += 1
-                        tableField.setRowCount(tableFieldNumRows)
-                        tableField.setCellWidget(tableFieldNumRows - 1, 0, checkBox)
-                        tableField.setCellWidget(tableFieldNumRows - 1, 1, qt.QLabel(fieldName))
-                    else:
-                        tableROINumRows += 1
-                        ROITable.setRowCount(tableROINumRows)
-                        ROITable.setCellWidget(tableROINumRows - 1, 0, checkBox)
-                        ROITable.setCellWidget(tableROINumRows -1, 1, qt.QLabel(fieldName))
-
-                ROITable.setCellWidget(0, 0, qt.QCheckBox())
-                ROITable.setCellWidget(0, 1, qt.QLabel('Entire Shape'))
+                    for i in range(0, numOfField):
+                        fieldName = pointData.GetArray(i).GetName()
+                        checkBox = qt.QCheckBox()
+                        if not re.search(expression, pointData.GetArray(i).GetName()):
+                            tableFieldNumRows += 1
+                            tableField.setRowCount(tableFieldNumRows)
+                            tableField.setCellWidget(tableFieldNumRows - 1, 0, checkBox)
+                            tableField.setCellWidget(tableFieldNumRows - 1, 1, qt.QLabel(fieldName))
+                        else:
+                            tableROINumRows += 1
+                            ROITable.setRowCount(tableROINumRows)
+                            ROITable.setCellWidget(tableROINumRows - 1, 0, checkBox)
+                            ROITable.setCellWidget(tableROINumRows -1, 1, qt.QLabel(fieldName))
 
             applyButton.enabled = activeNode != None
-            exportButton.enabled = activeNode != None
 
+
+        def displayStatisticsOnStatsTable():
+            # ---------------------------- Statistics Table ----------------------------
+            for keyField, valueField in self.fieldDictionary.iteritems():
+                statTable2 = qt.QTableWidget()
+                statTable2.setColumnCount(9)
+                statTable2.setHorizontalHeaderLabels(['ROI', 'Min', 'Max', 'Average', 'STD', 'PER15', 'PER50', 'PER75', 'PER95'])
+                tab.addTab(statTable2, keyField)
+                # Add Values:
+                numberOfRows = valueField.__len__()
+                statTable2.setRowCount(numberOfRows)
+                i = numberOfRows -1
+                for key, value in valueField.iteritems():
+                    statTable2.setCellWidget(i, 0, qt.QLabel(key))
+                    statTable2.setCellWidget(i, 1, qt.QLabel(value.min))
+                    statTable2.setCellWidget(i, 2, qt.QLabel(value.max))
+                    statTable2.setCellWidget(i, 3, qt.QLabel(value.mean))
+                    statTable2.setCellWidget(i, 4, qt.QLabel(value.std))
+                    statTable2.setCellWidget(i, 5, qt.QLabel(value.percentile15))
+                    statTable2.setCellWidget(i, 6, qt.QLabel(value.percentile50))
+                    statTable2.setCellWidget(i, 7, qt.QLabel(value.percentile75))
+                    statTable2.setCellWidget(i, 8, qt.QLabel(value.percentile95))
+                    i -= 1
+            self.layout.addWidget(tab)
+            self.layout.addLayout(exportLayout)
+            exportButton.connect('clicked()', onExportButton)
 
         def onApplyButton():
             activeInput = inputComboBox.currentNode()
+
             if activeInput:
                 activePointData = activeInput.GetModelDisplayNode().GetInputPolyData().GetPointData()
                 numberOfRowField = tableField.rowCount
                 numberOfRowROI = ROITable.rowCount
+
                 self.fieldDictionary.clear()
+                del self.ROIList[:]
+
+
                 for i in range(0, numberOfRowField):
                     widget = tableField.cellWidget(i, 0)
                     if widget.isChecked():
@@ -188,6 +225,7 @@ class MeshStatsWidget:
                     label = ROITable.cellWidget(i, 1)
                     if widget.isChecked():
                         self.ROIList.append(label.text)
+                print self.ROIList
 
                 if self.ROIList and self.fieldDictionary.__len__() > 0:
                     for key, value in self.fieldDictionary.iteritems():
@@ -200,6 +238,17 @@ class MeshStatsWidget:
                                 ROIArray = activePointData.GetArray(Region)
                                 self.logic.computeAll(fieldArray, value[Region], ROIArray)
 
+                indexWidgetTab = self.layout.indexOf(tab)
+                if indexWidgetTab != -1:
+                    for i in range(0, tab.count):
+                        widget = tab.widget(i)
+                        widget.clearContents()
+                        widget.setRowCount(0)
+
+                    tab.clear()
+                    self.layout.removeItem(exportLayout)
+                displayStatisticsOnStatsTable()
+
         def onExportButton():
             dialog = ctk.ctkFileDialog()
             dialog.selectNameFilter('.csv')
@@ -208,7 +257,7 @@ class MeshStatsWidget:
 
         inputComboBox.connect('currentNodeChanged(vtkMRMLNode*)', onCurrentNodeChanged)
         applyButton.connect('clicked()', onApplyButton)
-        exportButton.connect('clicked()', onExportButton)
+
 
         self.layout.addStretch(1)
 
@@ -239,7 +288,6 @@ class MeshStatsLogic:
 
     def defineArray(self, fieldArray, ROIArray):
         valueList = list()
-        print "fieldArray.GetNumberOfTuples():", fieldArray.GetNumberOfTuples()
         if ROIArray == 'None':
             for i in range(0, fieldArray.GetNumberOfTuples()):
                 valueList.append(fieldArray.GetValue(i))
@@ -260,7 +308,6 @@ class MeshStatsLogic:
         return numpy.mean(valueArray)
 
     def computeMinMax(self, valueArray):
-
         return numpy.min(valueArray), numpy.max(valueArray)
 
     def computeStandartDeviation(self, valueArray):
@@ -279,7 +326,6 @@ class MeshStatsLogic:
 
     def computeAll(self, fieldArray, fieldState, ROIArray):
         array = self.defineArray(fieldArray, ROIArray)
-        print array
         fieldState.min, fieldState.max = self.computeMinMax(array)
         fieldState.mean = self.computeMean(array)
         fieldState.std = self.computeStandartDeviation(array)
