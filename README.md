@@ -1,6 +1,6 @@
-#Pick And Paint
+#MeshStats
 
-Licence, please see :
+License, please see :
 	LICENSE.txt
 
 This is a Slicer Module.
