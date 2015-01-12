@@ -1,4 +1,4 @@
-import numpy, math, time, re, csv, os
+import numpy, math, re, csv, os
 from __main__ import vtk, qt, ctk, slicer
 
 
@@ -26,9 +26,6 @@ class MeshStatsWidget:
             self.percentile50 = 0
             self.percentile75 = 0
             self.percentile95 = 0
-        def printElements(self):
-            print" min:", self.min, " max:", self.max, " mean:", self.mean, " std:", self.std
-            print "percentile15:", self.percentile15, " percentile50:", self.percentile50, " percentile75:", self.percentile75, " percentile95:", self.percentile95
 
     def __init__(self, parent=None):
         self.developerMode = True
@@ -134,10 +131,12 @@ class MeshStatsWidget:
         # ------------------------------------------------------------------------------------
         #                                   OBSERVERS
         # ------------------------------------------------------------------------------------
+
         def onCloseScene(obj, event):
             print " --- OnCloseScene ---"
             # initialize Parameters
             globals()["MeshStats"] = slicer.util.reloadScriptedModule("MeshStats")
+
         slicer.mrmlScene.AddObserver(slicer.mrmlScene.EndCloseEvent, onCloseScene)
 
     def updateInterface(self):
@@ -209,6 +208,7 @@ class MeshStatsWidget:
         # ---------------------------- Statistics Table ----------------------------
         for keyField, valueField in self.fieldDictionary.iteritems():
             statTable = qt.QTableWidget()
+            statTable.setMinimumHeight(200)
             statTable.setColumnCount(9)
             statTable.setHorizontalHeaderLabels(['Shape', 'Min', 'Max', 'Average', 'STD', 'PER15', 'PER50', 'PER75', 'PER95'])
             self.tab.addTab(statTable, keyField)
