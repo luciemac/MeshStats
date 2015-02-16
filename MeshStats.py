@@ -27,6 +27,11 @@ class MeshStatsWidget:
             self.percentile75 = 0
             self.percentile95 = 0
 
+        def printElement(self):
+            print "min, max: ", self.min, self.max
+            print "mean :", self.mean
+            print "std", self.std
+
     def __init__(self, parent=None):
         self.developerMode = True
         if not parent:
@@ -57,9 +62,17 @@ class MeshStatsWidget:
         # -------------------------------------------------------------------------------------
         self.logic = MeshStatsLogic()
         # Dictionary Of field. Keys = Name of the field
-        self.fieldDictionary = dict()
-        self.shapeList = list()
-        self.arrayList = list()
+
+        self.modelList = list()
+        self.fieldList = list()
+
+        self.ROIList = list()
+
+        self.ROIDict = dict() # Key = Name of ROI
+                              # Value = Dictionary of Fields (key = Name of Field
+                              #                               Value = dictionary of shapes
+                              #                                             key = name of shapes
+                              #                                             value = Statistics store()
         
         # ------------------------------------------------------------------------------------
         #                                    SHAPES INPUT
@@ -76,10 +89,18 @@ class MeshStatsWidget:
         #                                  ROI TABLE
         # ------------------------------------------------------------------------------------
         self.ROIComboBox = ctk.ctkComboBox()
-        ROILayout = qt.QFormLayout()
-        ROILayout.addRow(" Region considered: ", self.ROIComboBox)
-        self.layout.addLayout(ROILayout)
+        self.ROIComboBox.adjustSize()
+        self.ROICheckBox = qt.QCheckBox('All')
 
+        ROILayout = qt.QHBoxLayout()
+        ROILayout_0 = qt.QFormLayout()
+        ROILayout_0.addRow(" Region considered: ", self.ROIComboBox)
+
+        ROILayout.addLayout(ROILayout_0)
+        ROILayout.addWidget(self.ROICheckBox)
+
+        self.layout.addLayout(ROILayout)
+        self.ROICheckBox.connect('stateChanged(int)', self.onROICheckBoxStateChanged)
         # ------------------------------------------------------------------------------------
         #                                  FIELD TABLE
         # ------------------------------------------------------------------------------------
@@ -108,15 +129,20 @@ class MeshStatsWidget:
         # ------------------------------------------------------------------------------------
         #                          Statistics Table - Export
         # ------------------------------------------------------------------------------------
-        self.tab = qt.QTabWidget()
+        self.tabROI = qt.QTabWidget()
+        self.tabROI.setTabPosition(2)
+        self.tabROI.adjustSize()
         # ---------------------------- Directory - Export Button -----------------------------
-        self.exportButton = qt.QPushButton("Export")
-        self.exportButton.enabled = True
-
         self.directoryExport = ctk.ctkDirectoryButton()
 
         self.exportCheckBox = qt.QCheckBox("Separate Files")
         self.exportCheckBox.setChecked(True)
+
+        self.exportDotButton = qt.QPushButton("Export as 0.000 ")
+        self.exportDotButton.enabled = True
+        self.exportComaButton = qt.QPushButton("Export as 0,000")
+        self.exportComaButton.enabled = True
+
 
         self.exportLayout = qt.QVBoxLayout()
 
@@ -124,8 +150,13 @@ class MeshStatsWidget:
         self.directAndCheckLayout.addWidget(self.directoryExport)
         self.directAndCheckLayout.addWidget(self.exportCheckBox)
 
+        self.exportButtonsLayout = qt.QHBoxLayout()
+        self.exportButtonsLayout.addWidget(self.exportDotButton)
+        self.exportButtonsLayout.addWidget(self.exportComaButton)
+
+
         self.exportLayout.addLayout(self.directAndCheckLayout)
-        self.exportLayout.addWidget(self.exportButton)
+        self.exportLayout.addLayout(self.exportButtonsLayout)
         self.updateInterface()
 
         # ------------------------------------------------------------------------------------
@@ -143,139 +174,237 @@ class MeshStatsWidget:
         self.runButton.enabled = not self.inputComboBox.noneChecked()
         self.tableField.clearContents()
         self.tableField.setRowCount(0)
+        del self.fieldList[:]
 
-        del self.arrayList[:]
         self.ROIComboBox.clear()
         self.ROIComboBox.addItem('Entire Shape')
 
+        del self.ROIList[:]
+        self.ROIList.append('Entire Shape')
+
         tableFieldNumRows = 0
         expression = r"ROI$"
-        if self.shapeList:
-            pointData = self.shapeList[0].GetModelDisplayNode().GetInputPolyData().GetPointData()
+        if self.modelList:
+            pointData = self.modelList[0].GetModelDisplayNode().GetInputPolyData().GetPointData()
             numOfArray = pointData.GetNumberOfArrays()
             for i in range(0, numOfArray):
-                self.arrayList.append(pointData.GetArray(i).GetName())
-            print self.arrayList
-            for arrayName in self.arrayList:
-                bool = self.compareArray(self.shapeList, arrayName)
+                self.fieldList.append(pointData.GetArray(i).GetName())
+            print self.fieldList
+            for arrayName in self.fieldList:
+                bool = self.compareArray(self.modelList, arrayName)
                 print bool
                 if bool:
-                    if not re.search(expression, arrayName):
-                        tableFieldNumRows += 1
-                        self.tableField.setRowCount(tableFieldNumRows)
-                        self.tableField.setCellWidget(tableFieldNumRows - 1, 0, qt.QCheckBox())
-                        self.tableField.setCellWidget(tableFieldNumRows - 1, 1, qt.QLabel(arrayName))
-                    else:
-                        self.ROIComboBox.addItem(arrayName)
+                    if pointData.GetArray(arrayName).GetNumberOfComponents() == 1:
+                        if not re.search(expression, arrayName):
+                            tableFieldNumRows += 1
+                            self.tableField.setRowCount(tableFieldNumRows)
+                            self.tableField.setCellWidget(tableFieldNumRows - 1, 0, qt.QCheckBox())
+                            self.tableField.setCellWidget(tableFieldNumRows - 1, 1, qt.QLabel(arrayName))
+                        else:
+                            self.ROIComboBox.addItem(arrayName)
+                            self.ROIList.append(arrayName)
         self.layout.addStretch(1)
 
     def onInputComboBoxCheckedNodesChanged(self):
-        self.shapeList = self.inputComboBox.checkedNodes()
-        print self.shapeList
+        self.modelList = self.inputComboBox.checkedNodes()
+        print self.modelList
         self.updateInterface()
 
-    def onExportButton(self):
-        print self.exportCheckBox.isChecked()
-        directory = self.directoryExport.directory
-        messageBox = ctk.ctkMessageBox()
-        messageBox.setWindowTitle(" /!\ WARNING /!\ ")
-        messageBox.setIcon(messageBox.Warning)
-
-        if self.exportCheckBox.isChecked(): # if exportation in different files
-            for fieldName, shapeDict in self.fieldDictionary.iteritems():
-                filename = directory + "/" + fieldName + ".csv"
-                if os.path.exists(filename):
-                    messageBox.setText("File " + fieldName + ".csv already exist in this folder.")
-                    messageBox.setInformativeText("Do you want to replace it? ")
-                    messageBox.setStandardButtons(messageBox.NoToAll | messageBox.No | messageBox.YesToAll | messageBox.Yes)
-                    choice = messageBox.exec_()
-                    if choice == messageBox.NoToAll:
-                        break
-                    if choice == messageBox.Yes:
-                        self.logic.exportFieldAsCSV(filename, fieldName, shapeDict)
-                    if choice == messageBox.YesToAll:
-                        for fieldName, shapeDict in self.fieldDictionary.iteritems():
-                            filename = directory + "/" + fieldName + ".csv"
-                            self.logic.exportFieldAsCSV(filename, fieldName, shapeDict)
-                        break
-                else:
-                    self.logic.exportFieldAsCSV(filename, fieldName, shapeDict)
-        else:
-            filename = directory + "/" + self.ROIComboBox.currentText + ".csv"
-            self.logic.exportAllAsCSV(filename, self.fieldDictionary)
-
-    def displayStatisticsOnStatsTable(self):
+    def defineStatisticsTable(self, fieldDictionaryValue):
         # ---------------------------- Statistics Table ----------------------------
-        for keyField, valueField in self.fieldDictionary.iteritems():
-            statTable = qt.QTableWidget()
-            statTable.setMinimumHeight(200)
-            statTable.setColumnCount(9)
-            statTable.setHorizontalHeaderLabels(['Shape', 'Min', 'Max', 'Average', 'STD', 'PER15', 'PER50', 'PER75', 'PER95'])
-            self.tab.addTab(statTable, keyField)
-            # Add Values:
-            numberOfRows = valueField.__len__()
-            statTable.setRowCount(numberOfRows)
-            i = numberOfRows -1
-            for key, value in valueField.iteritems():
-                statTable.setCellWidget(i, 0, qt.QLabel(key))
-                statTable.setCellWidget(i, 1, qt.QLabel(value.min))
-                statTable.setCellWidget(i, 2, qt.QLabel(value.max))
-                statTable.setCellWidget(i, 3, qt.QLabel(value.mean))
-                statTable.setCellWidget(i, 4, qt.QLabel(value.std))
-                statTable.setCellWidget(i, 5, qt.QLabel(value.percentile15))
-                statTable.setCellWidget(i, 6, qt.QLabel(value.percentile50))
-                statTable.setCellWidget(i, 7, qt.QLabel(value.percentile75))
-                statTable.setCellWidget(i, 8, qt.QLabel(value.percentile95))
-                i -= 1
-        self.layout.addWidget(self.tab)
-        self.layout.addLayout(self.exportLayout)
-        self.exportButton.connect('clicked()', self.onExportButton)
+        statTable = qt.QTableWidget()
+        statTable.setMinimumHeight(200)
+        statTable.setColumnCount(9)
+        statTable.setHorizontalHeaderLabels(['Shape', 'Min', 'Max', 'Average', 'STD', 'PER15', 'PER50', 'PER75', 'PER95'])
+        # Add Values:
+        numberOfRows = fieldDictionaryValue.__len__()
+        statTable.setRowCount(numberOfRows)
+        i = numberOfRows -1
+        for key, value in fieldDictionaryValue.iteritems():
+            statTable.setCellWidget(i, 0, qt.QLabel(key))
+            statTable.setCellWidget(i, 1, qt.QLabel(value.min))
+            statTable.setCellWidget(i, 2, qt.QLabel(value.max))
+            statTable.setCellWidget(i, 3, qt.QLabel(value.mean))
+            statTable.setCellWidget(i, 4, qt.QLabel(value.std))
+            statTable.setCellWidget(i, 5, qt.QLabel(value.percentile15))
+            statTable.setCellWidget(i, 6, qt.QLabel(value.percentile50))
+            statTable.setCellWidget(i, 7, qt.QLabel(value.percentile75))
+            statTable.setCellWidget(i, 8, qt.QLabel(value.percentile95))
+            i -= 1
+        statTable.resizeColumnToContents(0)
+        return statTable
 
-    def compareArray(self, shapeList, arrayName):
+    def compareArray(self, modelList, arrayName):
         listBool = list()
-        for shape in shapeList:
-            pointData = shape.GetModelDisplayNode().GetInputPolyData().GetPointData()
+        for model in modelList:
+            pointData = model.GetModelDisplayNode().GetInputPolyData().GetPointData()
             listBool.append(pointData.HasArray(arrayName))
         for bool in listBool:
             if bool == 0:
                 return False
         return True
 
+    def onROICheckBoxStateChanged(self, intCheckState):
+        # intCheckState == 2 when checked
+        # intCheckState == 0 when unchecked
+        print " ===== TEST =====", intCheckState
+        if intCheckState == 2:
+            self.ROIComboBox.setEnabled(False)
+        else:
+            if intCheckState == 0:
+                self.ROIComboBox.setEnabled(True)
+
     def onRunButton(self):
-        print " TEST"
-        ROIToCompute = self.ROIComboBox.currentText
-        if ROIToCompute and self.shapeList:
-            self.fieldDictionary.clear()
+        self.ROIDict.clear()
+        print "____________ On run ____________"
+        if self.modelList:
+            #REMOVE PREVIOUS TABLE IF IT EXISTS:
+            indexWidgetTabROI = self.layout.indexOf(self.tabROI)
+            if indexWidgetTabROI != -1:
+                for i in range(0, self.tabROI.count):
+                    tabWidget = self.tabROI.widget(i)
+                    for i in range(0, tabWidget.count):
+                        tableWidget = tabWidget.widget(i)
+                        tableWidget.clearContents()
+                        tableWidget.setRowCount(0)
+                    tabWidget.clear()
+                self.tabROI.clear()
+
+                self.exportDotButton.disconnect('clicked()', self.onExportDotButton)
+                self.layout.removeWidget(self.exportDotButton)
+                self.exportComaButton.disconnect('clicked()', self.onExportComaButton)
+                self.layout.removeWidget(self.exportComaButton)
+                self.layout.removeItem(self.exportLayout)
+
+            # DEFINE NEW TABLE
+            if self.ROICheckBox.isChecked():
+                print "PLOP"
+                for ROIName in self.ROIList:
+                    if not self.ROIDict.has_key(ROIName):
+                        self.ROIDict[ROIName] = dict()
+
+            else:
+                ROIToCompute = self.ROIComboBox.currentText
+                if not self.ROIDict.has_key(ROIToCompute):
+                    self.ROIDict[ROIToCompute] = dict()
+
             numberOfRowField = self.tableField.rowCount
-            for i in range(0, numberOfRowField):
-                widget = self.tableField.cellWidget(i, 0)
-                if widget.isChecked():
-                    self.fieldDictionary[self.tableField.cellWidget(i, 1).text] = dict()
+            for ROIName, ROIFieldDict in self.ROIDict.iteritems():
+                for i in range(0, numberOfRowField):
+                    widget = self.tableField.cellWidget(i, 0)
+                    if widget.isChecked():
+                        ROIFieldDict[self.tableField.cellWidget(i, 1).text] = dict()
+                for fieldName, fieldValue in ROIFieldDict.iteritems():
+                    print "Field Name: ", fieldName
+                    for shape in self.modelList:
+                        print "Shape: ", shape.GetName()
+                        activePointData = shape.GetModelDisplayNode().GetInputPolyData().GetPointData()
+                        fieldArray = activePointData.GetArray(fieldName)
+                        fieldValue[shape.GetName()] = self.StatisticStore()
 
-            if self.fieldDictionary.__len__() > 0:
-                for key, value in self.fieldDictionary.iteritems():
-                    for shape in self.shapeList:
-                        activePointData =shape.GetModelDisplayNode().GetInputPolyData().GetPointData()
-                        fieldArray = activePointData.GetArray(key)
-
-                        value[shape.GetName()] = self.StatisticStore()
-                        if ROIToCompute == 'Entire Shape':
-                            self.logic.computeAll(fieldArray, value[shape.GetName()], 'None')
+                        if ROIName == 'Entire Shape':
+                            print "Entire Shape"
+                            self.logic.computeAll(fieldArray, fieldValue[shape.GetName()], 'None')
                         else:
-                            ROIArray = activePointData.GetArray(ROIToCompute)
-                            self.logic.computeAll(fieldArray, value[shape.GetName()], ROIArray)
-                indexWidgetTab = self.layout.indexOf(self.tab)
-                if indexWidgetTab != -1:
-                    for i in range(0, self.tab.count):
-                        widget = self.tab.widget(i)
-                        widget.clearContents()
-                        widget.setRowCount(0)
-                    self.tab.clear()
-                    self.exportButton.disconnect('clicked()', self.onExportButton)
-                    self.layout.removeWidget(self.exportButton)
-                    self.layout.removeItem(self.exportLayout)
+                            print "Autre"
+                            ROIArray = activePointData.GetArray(ROIName)
+                            self.logic.computeAll(fieldArray, fieldValue[shape.GetName()], ROIArray)
 
-                self.displayStatisticsOnStatsTable()
+        self.updateTable()
+
+    def updateTable(self):
+        print "===== UPDATE TABLE ====="
+        # ROIToCompute = self.ROIComboBox.currentText
+
+        for ROIName, FieldDict in self.ROIDict.iteritems():
+            print "ROIName", ROIName
+            tab = qt.QTabWidget()
+            tab.adjustSize()
+            tab.setTabPosition(0)
+            for fieldName, fieldDictValue in FieldDict.iteritems():
+                statisticsTable = self.defineStatisticsTable(fieldDictValue)
+                tab.addTab(statisticsTable, fieldName)
+            self.tabROI.addTab(tab, ROIName)
+            print "DONE"
+
+        self.layout.addWidget(self.tabROI)
+        self.layout.addLayout(self.exportLayout)
+        self.exportDotButton.connect('clicked()', self.onExportDotButton)
+        self.exportComaButton.connect('clicked()', self.onExportComaButton)
+
+    def exportationFunction(self, BoolComa):
+        #  BoolComa is a boolean to know what kind of exportation is wanted
+        #  BoolComa = True for COMA Exportation And False for DOT's one
+
+        print self.exportCheckBox.isChecked()
+        directory = self.directoryExport.directory
+        messageBox = ctk.ctkMessageBox()
+        messageBox.setWindowTitle(" /!\ WARNING /!\ ")
+        messageBox.setIcon(messageBox.Warning)
+
+        if self.exportCheckBox.isChecked():  # if exportation in different files
+            for ROIName, ROIDictValue in sorted(self.ROIDict.iteritems()):
+                directoryFolder = directory + '/' + ROIName
+                if not os.path.exists(directoryFolder):
+                    os.mkdir(directoryFolder)
+                for fieldName, modelDict in sorted(ROIDictValue.iteritems()):
+                    filename = directoryFolder + "/" + fieldName + ".csv"
+                    if os.path.exists(filename):
+                        messageBox.setText("On "+ ROIName + ", file " + fieldName + ".csv already exist in this folder.")
+                        messageBox.setInformativeText("Do you want to replace it on " + ROIName + "?")
+                        messageBox.setStandardButtons(messageBox.NoToAll | messageBox.No | messageBox.YesToAll | messageBox.Yes)
+                        choice = messageBox.exec_()
+                        if choice == messageBox.NoToAll:
+                            print " No To All"
+                            break
+                        if choice == messageBox.Yes:
+                            print " Yes "
+                            self.logic.exportFieldAsCSV(filename, fieldName, modelDict)
+                            if BoolComa:
+                                self.logic.convertCSVWithComa(filename)
+                        if choice == messageBox.YesToAll:
+                            print " Yes To All"
+                            for fieldName, shapeDict in sorted(ROIDictValue.iteritems()):
+                                filename = directoryFolder + "/" + fieldName + ".csv"
+                                self.logic.exportFieldAsCSV(filename, fieldName, shapeDict)
+                                if BoolComa:
+                                    self.logic.convertCSVWithComa(filename)
+                            break
+                    else:
+                        self.logic.exportFieldAsCSV(filename, fieldName, modelDict)
+                        if BoolComa:
+                            self.logic.convertCSVWithComa(filename)
+        else:
+            for ROIName, ROIDictValue in sorted(self.ROIDict.iteritems()):
+                filename = directory + "/" + ROIName + ".csv"
+                if os.path.exists(filename):
+                    messageBox.setText("File " + ROIName + ".csv already exist in this folder.")
+                    messageBox.setInformativeText("Do you want to replace it? ")
+                    messageBox.setStandardButtons(messageBox.NoToAll | messageBox.No | messageBox.YesToAll | messageBox.Yes)
+                    choice = messageBox.exec_()
+                    if choice == messageBox.NoToAll:
+                        break
+                    if choice == messageBox.Yes:
+                        self.logic.exportAllAsCSV(filename, ROIName, ROIDictValue)
+                        if BoolComa:
+                            self.logic.convertCSVWithComa(filename)
+                    if choice == messageBox.YesToAll:
+                        for ROIName, ROIDictValue in sorted(self.ROIDict.iteritems()):
+                            filename = directory + "/" + ROIName + ".csv"
+                            self.logic.exportAllAsCSV(filename, ROIName, ROIDictValue)
+                            if self.exportCheckBox.isChecked():
+                                self.logic.convertCSVWithComa(filename)
+                        break
+                else:
+                    self.logic.exportAllAsCSV(filename, ROIName, ROIDictValue)
+                    if BoolComa:
+                        self.logic.convertCSVWithComa(filename)
+
+    def onExportDotButton(self):
+        self.exportationFunction(False)
+
+    def onExportComaButton(self):
+        self.exportationFunction(True)
 
     def onReload(self, moduleName="MeshStats"):
         """Generic reload method for any scripted module.
@@ -293,7 +422,7 @@ class MeshStatsWidget:
 
 class MeshStatsLogic:
     def __init__(self):
-        pass
+        self.numberOfDecimals = 3
 
     def findArray(self, arrayName, node):
         pointData = node.GetModelDisplayNode().GetInputPolyData().GetPointData()
@@ -321,19 +450,19 @@ class MeshStatsLogic:
         return valueArray
     
     def computeMean(self, valueArray):
-        return numpy.mean(valueArray)
+        return round(numpy.mean(valueArray), self.numberOfDecimals)
     
     def computeMinMax(self, valueArray):
-        return numpy.min(valueArray), numpy.max(valueArray)
+        return round(numpy.min(valueArray), self.numberOfDecimals), round(numpy.max(valueArray), self.numberOfDecimals)
     
     def computeStandartDeviation(self, valueArray):
-        return numpy.std(valueArray)
+        return round(numpy.std(valueArray), self.numberOfDecimals)
     
     def computePercentile(self, valueArray, percent):
         valueArray = numpy.sort(valueArray)
         index = (valueArray.size * percent) - 1
         ceilIndex = math.ceil(index)
-        return valueArray[ceilIndex]
+        return round(valueArray[ceilIndex], self.numberOfDecimals)
     
     def computeAll(self, fieldArray, fieldState, ROIArray):
         array = self.defineArray(fieldArray, ROIArray)
@@ -344,23 +473,29 @@ class MeshStatsLogic:
         fieldState.percentile50 = self.computePercentile(array, 0.50)
         fieldState.percentile75 = self.computePercentile(array, 0.75)
         fieldState.percentile95 = self.computePercentile(array, 0.95)
-    
-    def exportAllAsCSV(self, filename, fieldDictionary):
+
+    def writeFieldFile(self, fileWriter, modelDict):
+        for shapeName, shapeStats in modelDict.iteritems():
+            fileWriter.writerow([shapeName,
+                                 shapeStats.min,
+                                 shapeStats.max,
+                                 shapeStats.mean,
+                                 shapeStats.std,
+                                 shapeStats.percentile15,
+                                 shapeStats.percentile50,
+                                 shapeStats.percentile75,
+                                 shapeStats.percentile95])
+
+    def exportAllAsCSV(self, filename, ROIName, ROIDictValue):
         file = open(filename, 'w')
         cw = csv.writer(file, delimiter=',')
-        for fieldName, shapeDict in fieldDictionary.iteritems():
+        cw.writerow([ROIName])
+        print ROIDictValue
+        for fieldName, shapeDict in sorted(ROIDictValue.iteritems()):
+            print shapeDict
             cw.writerow([fieldName])
             cw.writerow(['Shape', 'Min', 'Max', 'Average', 'STD', 'PER15', 'PER50', 'PER75', 'PER95'])
-            for shapeName, shapeStats in shapeDict.iteritems():
-                cw.writerow([shapeName,
-                             shapeStats.min,
-                             shapeStats.max,
-                             shapeStats.mean,
-                             shapeStats.std,
-                             shapeStats.percentile15,
-                             shapeStats.percentile50,
-                             shapeStats.percentile75,
-                             shapeStats.percentile95])
+            self.writeFieldFile(cw, shapeDict)
             cw.writerow([' '])
         file.close()
 
@@ -369,18 +504,23 @@ class MeshStatsLogic:
         cw = csv.writer(file, delimiter=',')
         cw.writerow([fieldName])
         cw.writerow(['Shape', 'Min', 'Max', 'Average', 'STD', 'PER15', 'PER50', 'PER75', 'PER95'])
-        for shapeName, shapeStats in shapeDict.iteritems():
-            cw.writerow([shapeName,
-                         shapeStats.min,
-                         shapeStats.max,
-                         shapeStats.mean,
-                         shapeStats.std,
-                         shapeStats.percentile15,
-                         shapeStats.percentile50,
-                         shapeStats.percentile75,
-                         shapeStats.percentile95])
+        self.writeFieldFile(cw, shapeDict)
         file.close()
-    
+
+    def replaceCarac(self, filename, oldCarac, newCarac):
+        file = open(filename,'r')
+        lines = file.readlines()
+        with open (filename, 'r') as file:
+            lines = [line.replace(oldCarac, newCarac) for line in file.readlines()]
+        file.close()
+        file = open(filename, 'w')
+        file.writelines(lines)
+        file.close()
+
+    def convertCSVWithComa(self, filename):
+        self.replaceCarac(filename, ',', ';')
+        self.replaceCarac(filename, '.', ',')
+
     def testMinMaxMeanFunctions(self):
         arrayValue = vtk.vtkDoubleArray()
         ROIArray = vtk.vtkDoubleArray()
