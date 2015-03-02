@@ -154,7 +154,6 @@ class MeshStatsWidget(ScriptedLoadableModuleWidget):
             globals()["MeshStats"] = slicer.util.reloadScriptedModule("MeshStats")
         slicer.mrmlScene.AddObserver(slicer.mrmlScene.EndCloseEvent, onCloseScene)
 
-
     def cleanup(self):
         pass
 
@@ -292,132 +291,6 @@ class MeshStatsLogic (ScriptedLoadableModuleLogic):
         else:
             if intCheckState == 0:
                 self.ROIComboBox.setEnabled(True)
-
-    # def onRunButton(self):
-    #     self.ROIDict.clear()
-    #     print "____________ On run ____________"
-    #     if self.modelList:
-    #         #REMOVE PREVIOUS TABLE IF IT EXISTS:
-    #         indexWidgetTabROI = self.layout.indexOf(self.tabROI)
-    #         if indexWidgetTabROI != -1:
-    #             for i in range(0, self.tabROI.count):
-    #                 tabWidget = self.tabROI.widget(i)
-    #                 for i in range(0, tabWidget.count):
-    #                     tableWidget = tabWidget.widget(i)
-    #                     tableWidget.clearContents()
-    #                     tableWidget.setRowCount(0)
-    #                 tabWidget.clear()
-    #             self.tabROI.clear()
-    #
-    #             self.exportDotButton.disconnect('clicked()', self.onExportDotButton)
-    #             self.layout.removeWidget(self.exportDotButton)
-    #             self.exportComaButton.disconnect('clicked()', self.onExportComaButton)
-    #             self.layout.removeWidget(self.exportComaButton)
-    #             self.layout.removeItem(self.exportLayout)
-    #
-    #         # DEFINE NEW TABLE
-    #         if self.ROICheckBox.isChecked():
-    #             print "PLOP"
-    #             for ROIName in self.ROIList:
-    #                 if not self.ROIDict.has_key(ROIName):
-    #                     self.ROIDict[ROIName] = dict()
-    #
-    #         else:
-    #             ROIToCompute = self.ROIComboBox.currentText
-    #             if not self.ROIDict.has_key(ROIToCompute):
-    #                 self.ROIDict[ROIToCompute] = dict()
-    #
-    #         numberOfRowField = self.tableField.rowCount
-    #         for ROIName, ROIFieldDict in self.ROIDict.iteritems():
-    #             for i in range(0, numberOfRowField):
-    #                 widget = self.tableField.cellWidget(i, 0)
-    #                 if widget.isChecked():
-    #                     ROIFieldDict[self.tableField.cellWidget(i, 1).text] = dict()
-    #             for fieldName, fieldValue in ROIFieldDict.iteritems():
-    #                 print "Field Name: ", fieldName
-    #                 for shape in self.modelList:
-    #                     print "Shape: ", shape.GetName()
-    #                     activePointData = shape.GetModelDisplayNode().GetInputPolyData().GetPointData()
-    #                     fieldArray = activePointData.GetArray(fieldName)
-    #                     fieldValue[shape.GetName()] = self.StatisticStore()
-    #
-    #                     if ROIName == 'Entire Shape':
-    #                         print "Entire Shape"
-    #                         self.logic.computeAll(fieldArray, fieldValue[shape.GetName()], 'None')
-    #                     else:
-    #                         print "Autre"
-    #                         ROIArray = activePointData.GetArray(ROIName)
-    #                         self.logic.computeAll(fieldArray, fieldValue[shape.GetName()], ROIArray)
-    #
-    #     self.updateTable()
-
-    # def exportationFunction(self, BoolComa):
-    #     #  BoolComa is a boolean to know what kind of exportation is wanted
-    #     #  BoolComa = True for COMA Exportation And False for DOT's one
-    #
-    #     print self.exportCheckBox.isChecked()
-    #     directory = self.directoryExport.directory
-    #     messageBox = ctk.ctkMessageBox()
-    #     messageBox.setWindowTitle(" /!\ WARNING /!\ ")
-    #     messageBox.setIcon(messageBox.Warning)
-    #
-    #     if self.exportCheckBox.isChecked():  # if exportation in different files
-    #         for ROIName, ROIDictValue in sorted(self.ROIDict.iteritems()):
-    #             directoryFolder = directory + '/' + ROIName
-    #             if not os.path.exists(directoryFolder):
-    #                 os.mkdir(directoryFolder)
-    #             for fieldName, modelDict in sorted(ROIDictValue.iteritems()):
-    #                 filename = directoryFolder + "/" + fieldName + ".csv"
-    #                 if os.path.exists(filename):
-    #                     messageBox.setText("On "+ ROIName + ", file " + fieldName + ".csv already exist in this folder.")
-    #                     messageBox.setInformativeText("Do you want to replace it on " + ROIName + "?")
-    #                     messageBox.setStandardButtons(messageBox.NoToAll | messageBox.No | messageBox.YesToAll | messageBox.Yes)
-    #                     choice = messageBox.exec_()
-    #                     if choice == messageBox.NoToAll:
-    #                         print " No To All"
-    #                         break
-    #                     if choice == messageBox.Yes:
-    #                         print " Yes "
-    #                         self.logic.exportFieldAsCSV(filename, fieldName, modelDict)
-    #                         if BoolComa:
-    #                             self.logic.convertCSVWithComa(filename)
-    #                     if choice == messageBox.YesToAll:
-    #                         print " Yes To All"
-    #                         for fieldName, shapeDict in sorted(ROIDictValue.iteritems()):
-    #                             filename = directoryFolder + "/" + fieldName + ".csv"
-    #                             self.logic.exportFieldAsCSV(filename, fieldName, shapeDict)
-    #                             if BoolComa:
-    #                                 self.logic.convertCSVWithComa(filename)
-    #                         break
-    #                 else:
-    #                     self.logic.exportFieldAsCSV(filename, fieldName, modelDict)
-    #                     if BoolComa:
-    #                         self.logic.convertCSVWithComa(filename)
-    #     else:
-    #         for ROIName, ROIDictValue in sorted(self.ROIDict.iteritems()):
-    #             filename = directory + "/" + ROIName + ".csv"
-    #             if os.path.exists(filename):
-    #                 messageBox.setText("File " + ROIName + ".csv already exist in this folder.")
-    #                 messageBox.setInformativeText("Do you want to replace it? ")
-    #                 messageBox.setStandardButtons(messageBox.NoToAll | messageBox.No | messageBox.YesToAll | messageBox.Yes)
-    #                 choice = messageBox.exec_()
-    #                 if choice == messageBox.NoToAll:
-    #                     break
-    #                 if choice == messageBox.Yes:
-    #                     self.logic.exportAllAsCSV(filename, ROIName, ROIDictValue)
-    #                     if BoolComa:
-    #                         self.logic.convertCSVWithComa(filename)
-    #                 if choice == messageBox.YesToAll:
-    #                     for ROIName, ROIDictValue in sorted(self.ROIDict.iteritems()):
-    #                         filename = directory + "/" + ROIName + ".csv"
-    #                         self.logic.exportAllAsCSV(filename, ROIName, ROIDictValue)
-    #                         if self.exportCheckBox.isChecked():
-    #                             self.logic.convertCSVWithComa(filename)
-    #                     break
-    #             else:
-    #                 self.logic.exportAllAsCSV(filename, ROIName, ROIDictValue)
-    #                 if BoolComa:
-    #                     self.logic.convertCSVWithComa(filename)
 
     def onExportDotButton(self):
         self.exportationFunction(False)
@@ -661,7 +534,6 @@ class MeshStatsLogic (ScriptedLoadableModuleLogic):
     def convertCSVWithComa(self, filename):
         self.replaceCarac(filename, ',', ';')
         self.replaceCarac(filename, '.', ',')
-
 
 class MeshStatsTest(ScriptedLoadableModuleTest):
     def setUp(self):
