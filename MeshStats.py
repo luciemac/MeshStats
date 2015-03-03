@@ -30,22 +30,6 @@ class MeshStats(ScriptedLoadableModule):
 
 
 class MeshStatsWidget(ScriptedLoadableModuleWidget):
-    class StatisticStore(object):
-        def __init__(self):
-            self.min = 0
-            self.max = 0
-            self.mean = 0
-            self.std = 0
-            self.percentile15 = 0
-            self.percentile50 = 0
-            self.percentile75 = 0
-            self.percentile95 = 0
-
-        def printElement(self):
-            print "min, max: ", self.min, self.max
-            print "mean :", self.mean
-            print "std", self.std
-
     def setup(self):
         ScriptedLoadableModuleWidget.setup(self)
         # -------------------------------------------------------------------------------------
@@ -76,11 +60,9 @@ class MeshStatsWidget(ScriptedLoadableModuleWidget):
         self.ROIComboBox = ctk.ctkComboBox()
         self.ROIComboBox.adjustSize()
         self.ROICheckBox = qt.QCheckBox('All')
-
         ROILayout = qt.QHBoxLayout()
         ROILayout_0 = qt.QFormLayout()
         ROILayout_0.addRow(" Region considered: ", self.ROIComboBox)
-
         ROILayout.addLayout(ROILayout_0)
         ROILayout.addWidget(self.ROICheckBox)
 
@@ -95,11 +77,10 @@ class MeshStatsWidget(ScriptedLoadableModuleWidget):
         self.tableField.setHorizontalHeaderLabels([' ', 'Field Name'])
         self.tableField.setColumnWidth(0, 18)
         self.tableField.setColumnWidth(1, 210)
-
         fieldLayout = qt.QFormLayout()
         fieldLayout.addRow(" Field: ", self.tableField)
-        self.layout.addLayout(fieldLayout)
 
+        self.layout.addLayout(fieldLayout)
         # ------------------------------------------------------------------------------------
         #                                    RUN
         # ------------------------------------------------------------------------------------
@@ -107,8 +88,8 @@ class MeshStatsWidget(ScriptedLoadableModuleWidget):
         self.runButton.enabled = False
         roiLayout = qt.QHBoxLayout()
         roiLayout.addWidget(self.runButton)
-        self.layout.addLayout(roiLayout)
 
+        self.layout.addLayout(roiLayout)
         self.runButton.connect('clicked()', self.onRunButton)
         # ------------------------------------------------------------------------------------
         #                          Statistics Table - Export
@@ -125,24 +106,17 @@ class MeshStatsWidget(ScriptedLoadableModuleWidget):
         self.exportComaButton = qt.QPushButton("Export as 0,000")
         self.exportComaButton.enabled = True
 
-        self.exportDotButton = qt.QPushButton("Export as 0.000 ")
-        self.exportDotButton.enabled = True
-        self.exportComaButton = qt.QPushButton("Export as 0,000")
-        self.exportComaButton.enabled = True
-
-
         self.exportLayout = qt.QVBoxLayout()
-        self.directAndCheckLayout = qt.QHBoxLayout()
-        self.directAndCheckLayout.addWidget(self.directoryExport)
-        self.directAndCheckLayout.addWidget(self.exportCheckBox)
-
+        self.directoryAndExportLayout = qt.QHBoxLayout()
+        self.directoryAndExportLayout.addWidget(self.directoryExport)
+        self.directoryAndExportLayout.addWidget(self.exportCheckBox)
         self.exportButtonsLayout = qt.QHBoxLayout()
         self.exportButtonsLayout.addWidget(self.exportDotButton)
         self.exportButtonsLayout.addWidget(self.exportComaButton)
 
-
-        self.exportLayout.addLayout(self.directAndCheckLayout)
+        self.exportLayout.addLayout(self.directoryAndExportLayout)
         self.exportLayout.addLayout(self.exportButtonsLayout)
+
         self.logic.updateInterface(self.runButton, self.inputComboBox, self.tableField,
                                    self.ROIComboBox, self.ROIList, self.modelList, self.layout)
 
@@ -154,11 +128,9 @@ class MeshStatsWidget(ScriptedLoadableModuleWidget):
             globals()["MeshStats"] = slicer.util.reloadScriptedModule("MeshStats")
         slicer.mrmlScene.AddObserver(slicer.mrmlScene.EndCloseEvent, onCloseScene)
 
-    def cleanup(self):
-        pass
-
     def onInputComboBoxCheckedNodesChanged(self):
         self.modelList = self.inputComboBox.checkedNodes()
+        self.runButton.enabled = not self.inputComboBox.noneChecked()
         self.logic.updateInterface(self.runButton, self.inputComboBox, self.tableField,
                                    self.ROIComboBox, self.ROIList, self.modelList, self.layout)
 
@@ -175,16 +147,15 @@ class MeshStatsWidget(ScriptedLoadableModuleWidget):
         self.ROIDict.clear()
         if self.modelList:
             self.logic.removeTable(self.layout, self.tabROI)
-
             self.exportDotButton.disconnect('clicked()', self.onExportDotButton)
             self.layout.removeWidget(self.exportDotButton)
             self.exportComaButton.disconnect('clicked()', self.onExportComaButton)
             self.layout.removeWidget(self.exportComaButton)
             self.layout.removeItem(self.exportLayout)
-
         self.logic.displayStatistics(self.ROICheckBox, self.ROIList, self.ROIDict, self.ROIComboBox,
                                      self.tableField, self.modelList, self.tabROI, self.layout)
         self.layout.addLayout(self.exportLayout)
+
         self.exportDotButton.connect('clicked()', self.onExportDotButton)
         self.exportComaButton.connect('clicked()', self.onExportComaButton)
 
@@ -212,18 +183,7 @@ class MeshStatsLogic (ScriptedLoadableModuleLogic):
     def __init__(self):
         self.numberOfDecimals = 3
 
-    def compareArray(self, modelList, arrayName):
-        listBool = list()
-        for model in modelList:
-            pointData = model.GetModelDisplayNode().GetInputPolyData().GetPointData()
-            listBool.append(pointData.HasArray(arrayName))
-        for bool in listBool:
-            if bool == 0:
-                return False
-        return True
-
     def updateInterface(self, runButton, inputComboBox, tableField, ROIComboBox, ROIList, modelList, layout):
-        runButton.enabled = not inputComboBox.noneChecked()
         tableField.clearContents()
         tableField.setRowCount(0)
         ROIComboBox.clear()
@@ -253,53 +213,17 @@ class MeshStatsLogic (ScriptedLoadableModuleLogic):
                             ROIList.append(arrayName)
         layout.addStretch(1)
 
-    def onInputComboBoxCheckedNodesChanged(self):
-        self.modelList = self.inputComboBox.checkedNodes()
-        print self.modelList
-        self.updateInterface()
+    def compareArray(self, modelList, arrayName):
+        listBool = list()
+        for model in modelList:
+            pointData = model.GetModelDisplayNode().GetInputPolyData().GetPointData()
+            listBool.append(pointData.HasArray(arrayName))
+        for bool in listBool:
+            if bool == 0:
+                return False
+        return True
 
     def defineStatisticsTable(self, fieldDictionaryValue):
-        # ---------------------------- Statistics Table ----------------------------
-        statTable = qt.QTableWidget()
-        statTable.setMinimumHeight(200)
-        statTable.setColumnCount(9)
-        statTable.setHorizontalHeaderLabels(['Shape', 'Min', 'Max', 'Average', 'STD', 'PER15', 'PER50', 'PER75', 'PER95'])
-        # Add Values:
-        numberOfRows = fieldDictionaryValue.__len__()
-        statTable.setRowCount(numberOfRows)
-        i = numberOfRows -1
-        for key, value in fieldDictionaryValue.iteritems():
-            statTable.setCellWidget(i, 0, qt.QLabel(key))
-            statTable.setCellWidget(i, 1, qt.QLabel(value.min))
-            statTable.setCellWidget(i, 2, qt.QLabel(value.max))
-            statTable.setCellWidget(i, 3, qt.QLabel(value.mean))
-            statTable.setCellWidget(i, 4, qt.QLabel(value.std))
-            statTable.setCellWidget(i, 5, qt.QLabel(value.percentile15))
-            statTable.setCellWidget(i, 6, qt.QLabel(value.percentile50))
-            statTable.setCellWidget(i, 7, qt.QLabel(value.percentile75))
-            statTable.setCellWidget(i, 8, qt.QLabel(value.percentile95))
-            i -= 1
-        statTable.resizeColumnToContents(0)
-        return statTable
-
-    def onROICheckBoxStateChanged(self, intCheckState):
-        # intCheckState == 2 when checked
-        # intCheckState == 0 when unchecked
-        print " ===== TEST =====", intCheckState
-        if intCheckState == 2:
-            self.ROIComboBox.setEnabled(False)
-        else:
-            if intCheckState == 0:
-                self.ROIComboBox.setEnabled(True)
-
-    def onExportDotButton(self):
-        self.exportationFunction(False)
-
-    def onExportComaButton(self):
-        self.exportationFunction(True)
-
-    def defineStatisticsTable(self, fieldDictionaryValue):
-        # ---------------------------- Statistics Table ----------------------------
         statTable = qt.QTableWidget()
         statTable.setMinimumHeight(200)
         statTable.setColumnCount(12)
@@ -345,7 +269,6 @@ class MeshStatsLogic (ScriptedLoadableModuleLogic):
             ROIToCompute = ROIComboBox.currentText
             if not ROIDict.has_key(ROIToCompute):
                 ROIDict[ROIToCompute] = dict()
-
         numberOfRowField = tableField.rowCount
         for ROIName, ROIFieldDict in ROIDict.iteritems():
             for i in range(0, numberOfRowField):
@@ -365,7 +288,7 @@ class MeshStatsLogic (ScriptedLoadableModuleLogic):
         self.updateTable(ROIDict, tabROI, layout)
 
     def removeTable(self, layout, tabROI):
-        #REMOVE PREVIOUS TABLE IF IT EXISTS:
+        # Remove table if it already exists:
         indexWidgetTabROI = layout.indexOf(tabROI)
         if indexWidgetTabROI != -1:
             for i in range(0, tabROI.count):
@@ -378,6 +301,9 @@ class MeshStatsLogic (ScriptedLoadableModuleLogic):
             tabROI.clear()
 
     def defineArray(self, fieldArray, ROIArray):
+        #  Define array of value from fieldArray(array with all the distances from ModelToModelDistance)
+        #  using ROIArray as a mask
+        #  Return a numpy.array to be able to use numpy's method to compute statistics
         valueList = list()
         if ROIArray == 'None':
             for i in range(0, fieldArray.GetNumberOfTuples()):
@@ -395,15 +321,21 @@ class MeshStatsLogic (ScriptedLoadableModuleLogic):
         return valueArray
 
     def computeMean(self, valueArray):
+        #  valueArray is an array in which values to compute statistics on are stored
         return round(numpy.mean(valueArray), self.numberOfDecimals)
     
     def computeMinMax(self, valueArray):
+        #  valueArray is an array in which values to compute statistics on are stored
         return round(numpy.min(valueArray), self.numberOfDecimals), round(numpy.max(valueArray), self.numberOfDecimals)
     
-    def computeStandartDeviation(self, valueArray):
+    def computeStandardDeviation(self, valueArray):
+        #  valueArray is an array in which values to compute statistics on are stored
         return round(numpy.std(valueArray), self.numberOfDecimals)
     
     def computePercentile(self, valueArray, percent):
+        #  Function to compute different percentile
+        #  valueArray is an array in which values to compute statistics on are stored
+        #  percent is a value between 0 and 1
         valueArray = numpy.sort(valueArray)
         index = (valueArray.size * percent) - 1
         ceilIndex = math.ceil(index)
@@ -413,7 +345,7 @@ class MeshStatsLogic (ScriptedLoadableModuleLogic):
         array = self.defineArray(fieldArray, ROIArray)
         fieldState.min, fieldState.max = self.computeMinMax(array)
         fieldState.mean = self.computeMean(array)
-        fieldState.std = self.computeStandartDeviation(array)
+        fieldState.std = self.computeStandardDeviation(array)
         fieldState.percentile5 = self.computePercentile(array, 0.05)
         fieldState.percentile15 = self.computePercentile(array, 0.15)
         fieldState.percentile25 = self.computePercentile(array, 0.25)
@@ -423,6 +355,8 @@ class MeshStatsLogic (ScriptedLoadableModuleLogic):
         fieldState.percentile95 = self.computePercentile(array, 0.95)
 
     def writeFieldFile(self, fileWriter, modelDict):
+        #  Function defined to export all statistics of a field concidering a file writer (fileWriter)
+        #  and a dictionary of models (modelDict) where statistics are stored
         for shapeName, shapeStats in modelDict.iteritems():
             fileWriter.writerow([shapeName,
                                  shapeStats.min,
@@ -438,6 +372,7 @@ class MeshStatsLogic (ScriptedLoadableModuleLogic):
                                  shapeStats.percentile95])
 
     def exportAllAsCSV(self, filename, ROIName, ROIDictValue):
+        #  Export all fields on the same csv file
         file = open(filename, 'w')
         cw = csv.writer(file, delimiter=',')
         cw.writerow([ROIName])
@@ -450,6 +385,7 @@ class MeshStatsLogic (ScriptedLoadableModuleLogic):
         file.close()
 
     def exportFieldAsCSV(self, filename, fieldName, shapeDict):
+        #  Export fields on different csv files
         file = open(filename, 'w')
         cw = csv.writer(file, delimiter=',')
         cw.writerow([fieldName])
@@ -521,19 +457,22 @@ class MeshStatsLogic (ScriptedLoadableModuleLogic):
                     if BoolComa:
                         self.convertCSVWithComa(filename)
 
-    def replaceCarac(self, filename, oldCarac, newCarac):
+    def replaceCharac(self, filename, oldCharac, newCharac):
+        #  Function to replace a charactere (oldCharac) in a file (filename) by a new one (newCharac)
         file = open(filename,'r')
         lines = file.readlines()
         with open (filename, 'r') as file:
-            lines = [line.replace(oldCarac, newCarac) for line in file.readlines()]
+            lines = [line.replace(oldCharac, newCharac) for line in file.readlines()]
         file.close()
         file = open(filename, 'w')
         file.writelines(lines)
         file.close()
 
     def convertCSVWithComa(self, filename):
-        self.replaceCarac(filename, ',', ';')
-        self.replaceCarac(filename, '.', ',')
+        #  Convert the comma (used as value separator) by the semicolon
+        #  Convert the dot (used as decimal separator) by the comma
+        self.replaceCharac(filename, ',', ';')
+        self.replaceCharac(filename, '.', ',')
 
 class MeshStatsTest(ScriptedLoadableModuleTest):
     def setUp(self):
@@ -587,7 +526,7 @@ class MeshStatsTest(ScriptedLoadableModuleTest):
         array = self.defineArrays(logic, 1, 101)
         min, max = logic.computeMinMax(array)
         mean = logic.computeMean(array)
-        std = logic.computeStandartDeviation(array)
+        std = logic.computeStandardDeviation(array)
         print "min=", min, "max=", max, "mean=", mean, "std=", std
         if min != 1 or max != 100 or mean != 50.5 or std != 28.866:
             print "      Failed! "
