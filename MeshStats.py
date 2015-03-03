@@ -418,18 +418,18 @@ class MeshStatsLogic (ScriptedLoadableModuleLogic):
                         if choice == messageBox.Yes:
                             self.exportFieldAsCSV(filename, fieldName, modelDict)
                             if BoolComa:
-                                self.convertCSVWithComa(filename)
+                                self.convertCSVWithComma(filename)
                         if choice == messageBox.YesToAll:
                             for fieldName, shapeDict in sorted(ROIDictValue.iteritems()):
                                 filename = directoryFolder + "/" + fieldName + ".csv"
                                 self.exportFieldAsCSV(filename, fieldName, shapeDict)
                                 if BoolComa:
-                                    self.convertCSVWithComa(filename)
+                                    self.convertCSVWithComma(filename)
                             break
                     else:
                         self.exportFieldAsCSV(filename, fieldName, modelDict)
                         if BoolComa:
-                            self.convertCSVWithComa(filename)
+                            self.convertCSVWithComma(filename)
         else:
             for ROIName, ROIDictValue in sorted(ROIDict.iteritems()):
                 filename = directory + "/" + ROIName + ".csv"
@@ -443,18 +443,18 @@ class MeshStatsLogic (ScriptedLoadableModuleLogic):
                     if choice == messageBox.Yes:
                         self.exportAllAsCSV(filename, ROIName, ROIDictValue)
                         if BoolComa:
-                            self.convertCSVWithComa(filename)
+                            self.convertCSVWithComma(filename)
                     if choice == messageBox.YesToAll:
                         for ROIName, ROIDictValue in sorted(ROIDict.iteritems()):
                             filename = directory + "/" + ROIName + ".csv"
                             self.exportAllAsCSV(filename, ROIName, ROIDictValue)
                             if exportCheckBox.isChecked():
-                                self.convertCSVWithComa(filename)
+                                self.convertCSVWithComma(filename)
                         break
                 else:
                     self.exportAllAsCSV(filename, ROIName, ROIDictValue)
                     if BoolComa:
-                        self.convertCSVWithComa(filename)
+                        self.convertCSVWithComma(filename)
 
     def replaceCharac(self, filename, oldCharac, newCharac):
         #  Function to replace a charactere (oldCharac) in a file (filename) by a new one (newCharac)
@@ -467,7 +467,7 @@ class MeshStatsLogic (ScriptedLoadableModuleLogic):
         file.writelines(lines)
         file.close()
 
-    def convertCSVWithComa(self, filename):
+    def convertCSVWithComma(self, filename):
         #  Convert the comma (used as value separator) by the semicolon
         #  Convert the dot (used as decimal separator) by the comma
         self.replaceCharac(filename, ',', ';')
