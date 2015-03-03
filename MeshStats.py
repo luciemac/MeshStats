@@ -18,9 +18,8 @@ class MeshStats(ScriptedLoadableModule):
             The goal of this module is to compute statistics on a model,
             considering a specific region (defined with Pick'n Paint) or on the entire shape.
             Statistics are: Minimum Value, Maximum Value, Average, Standard Deviation, and different type of percentile.
-            It's possible to export those values as csv file.
+            It's possible to export those values as CSV file.
 
-            Mesh Statistics
             Before working on Mesh Statistics, you have to compute ModelToModelDistance.
             """
         parent.acknowledgementText = """
@@ -36,11 +35,11 @@ class MeshStatsWidget(ScriptedLoadableModuleWidget):
         self.modelList = list()
         self.fieldList = list()
         self.ROIList = list()
-        self.ROIDict = dict() # Key = Name of ROI
-                              # Value = Dictionary of Fields (key = Name of Field
-                              #                               Value = dictionary of shapes
-                              #                                             key = name of shapes
-                              #                                             value = Statistics store()
+        self.ROIDict = dict()  # Key = Name of ROI
+                               # Value = Dictionary of Fields (key = Name of Field
+                               #                               Value = dictionary of shapes
+                               #                                             key = name of shapes
+                               #                                             value = Statistics store()
 
         self.logic = MeshStatsLogic()
         # ------------------------------------------------------------------------------------
@@ -183,7 +182,7 @@ class MeshStatsLogic (ScriptedLoadableModuleLogic):
     def __init__(self):
         self.numberOfDecimals = 3
 
-    def updateInterface(self, runButton, inputComboBox, tableField, ROIComboBox, ROIList, modelList, layout):
+    def updateInterface(self, tableField, ROIComboBox, ROIList, modelList, layout):
         tableField.clearContents()
         tableField.setRowCount(0)
         ROIComboBox.clear()
@@ -461,7 +460,7 @@ class MeshStatsLogic (ScriptedLoadableModuleLogic):
         #  Function to replace a charactere (oldCharac) in a file (filename) by a new one (newCharac)
         file = open(filename,'r')
         lines = file.readlines()
-        with open (filename, 'r') as file:
+        with open(filename, 'r') as file:
             lines = [line.replace(oldCharac, newCharac) for line in file.readlines()]
         file.close()
         file = open(filename, 'w')
