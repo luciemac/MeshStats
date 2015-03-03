@@ -116,8 +116,7 @@ class MeshStatsWidget(ScriptedLoadableModuleWidget):
         self.exportLayout.addLayout(self.directoryAndExportLayout)
         self.exportLayout.addLayout(self.exportButtonsLayout)
 
-        self.logic.updateInterface(self.runButton, self.inputComboBox, self.tableField,
-                                   self.ROIComboBox, self.ROIList, self.modelList, self.layout)
+        self.logic.updateInterface(self.tableField, self.ROIComboBox, self.ROIList, self.modelList, self.layout)
 
         # ------------------------------------------------------------------------------------
         #                                   OBSERVERS
@@ -130,8 +129,7 @@ class MeshStatsWidget(ScriptedLoadableModuleWidget):
     def onInputComboBoxCheckedNodesChanged(self):
         self.modelList = self.inputComboBox.checkedNodes()
         self.runButton.enabled = not self.inputComboBox.noneChecked()
-        self.logic.updateInterface(self.runButton, self.inputComboBox, self.tableField,
-                                   self.ROIComboBox, self.ROIList, self.modelList, self.layout)
+        self.logic.updateInterface(self.tableField, self.ROIComboBox, self.ROIList, self.modelList, self.layout)
 
     def onROICheckBoxStateChanged(self, intCheckState):
         # intCheckState == 2 when checked
