@@ -224,7 +224,7 @@ class MeshStatsLogic (ScriptedLoadableModuleLogic):
         statTable = qt.QTableWidget()
         statTable.setMinimumHeight(200)
         statTable.setColumnCount(12)
-        statTable.setHorizontalHeaderLabels(['Shape','Min','Max','Average','STD','PER5','PER15','PER25','PER50','PER75','PER85','PER95'])
+        statTable.setHorizontalHeaderLabels(['Shape','Min','Max','Mean','SD','5th centile','15th centile','25th centile','50th centile','75th centile','85th centile','95th centile'])
         # Add Values:
         numberOfRows = fieldDictionaryValue.__len__()
         statTable.setRowCount(numberOfRows)
@@ -376,7 +376,7 @@ class MeshStatsLogic (ScriptedLoadableModuleLogic):
         for fieldName, shapeDict in sorted(ROIDictValue.iteritems()):
             print shapeDict
             cw.writerow([fieldName])
-            cw.writerow(['Shape','Min','Max','Average','STD','PER5','PER15','PER25','PER50','PER75','PER85','PER95'])
+            cw.writerow(['Shape','Min','Max','Mean','SD','5th centile','15th centile','25th centile','50th centile','75th centile','85th centile','95th centile'])
             self.writeFieldFile(cw, shapeDict)
             cw.writerow([' '])
         file.close()
@@ -386,7 +386,7 @@ class MeshStatsLogic (ScriptedLoadableModuleLogic):
         file = open(filename, 'w')
         cw = csv.writer(file, delimiter=',')
         cw.writerow([fieldName])
-        cw.writerow(['Shape','Min','Max','Average','STD','PER5','PER15','PER25','PER50','PER75','PER85','PER95'])
+        cw.writerow(['Shape','Min','Max','Mean','SD','5th centile','15th centile','25th centile','50th centile','75th centile','85th centile','95th centile'])
         self.writeFieldFile(cw, shapeDict)
         file.close()
 
