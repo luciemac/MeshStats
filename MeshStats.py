@@ -376,7 +376,7 @@ class MeshStatsLogic (ScriptedLoadableModuleLogic):
         for fieldName, shapeDict in sorted(ROIDictValue.iteritems()):
             print shapeDict
             cw.writerow([fieldName])
-            cw.writerow(['Shape', 'Min', 'Max', 'Average', 'STD', 'PER15', 'PER50', 'PER75', 'PER95'])
+            cw.writerow(['Shape','Min','Max','Average','STD','PER5','PER15','PER25','PER50','PER75','PER85','PER95'])
             self.writeFieldFile(cw, shapeDict)
             cw.writerow([' '])
         file.close()
